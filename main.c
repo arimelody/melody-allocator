@@ -5,7 +5,7 @@ int main() {
 
     long long unsigned int size = 0;
     
-    printf("please enter the number of sizes (GiB) you would like to allocate (i.e. 4 = 4GiB):\n> ");
+    printf("please enter the number of bytes (GiB) you would like to allocate (i.e. 4 = 4GiB):\n> ");
     int digit = 0;
     while (1) {
         char input = getchar();

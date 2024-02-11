@@ -31,11 +31,11 @@ int main() {
     printf("please wait...\n");
     char* wtf = (char*) malloc(size * sizeof(char));
 
-    for (int i = 0; i < size; i++) {
+    for (long long unsigned int i = 0; i < size; i++) {
         wtf[i] = 255;
     }
 
-    printf("%d bytes of heap memory has been allocated. you are insane.\n", size);
+    printf("%llu bytes of heap memory has been allocated. you are insane.\n", size);
     printf("press any key to release this memory, or CTRL+C to exit the program.\n");
 
     getchar();

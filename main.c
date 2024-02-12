@@ -1,42 +1,44 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <conio.h>
 
 int main() {
 
-    long long unsigned int size = 0;
+    unsigned long long int size = 0;
+    unsigned int gib = 0;
     
-    printf("please enter the number of bytes (GiB) you would like to allocate (i.e. 4 = 4GiB):\n> ");
-    int digit = 0;
+    printf("please enter the number of gibibytes (GiB) you would like to allocate (1 GiB = 1073741824 bytes):\n> ");
+    unsigned int digit = 0;
     while (1) {
-        char input = getchar();
+        unsigned char input = getchar();
         if (input == '\n') break;
         if (input < '0' || input > '9') continue;
 
-        char number = input - 48;
-        if (digit > 0) number = number * 10 * digit;
-        if (input == '0') number = 10 * digit;
+        if (digit > 0) gib = gib * 10;
 
-        size = size + number;
+        gib = gib + (unsigned int) input - 48;
         digit++;
     }
 
-    size = size * 1024 * 1024 * 1024;
+    size = (unsigned long long int) gib * 1024 * 1024 * 1024;
 
-    printf("you are about to allocate %llu bytes of heap memory. are you sure? (y/n)\n> ", size);
+    printf("you are about to allocate %d GiB (%llu bytes) of heap memory. are you sure? (y/n)\n> ", gib, size);
 
-    char input = getchar();
+    unsigned char input = getchar();
     if (input != 'y') return 0;
     while (getchar() != '\n');
 
-    printf("please wait...\n");
-    char* wtf = (char*) malloc(size * sizeof(char));
+    printf("please wait");
+    unsigned long long int* wtf = (unsigned long long int*) malloc(size);
 
-    for (long long unsigned int i = 0; i < size; i++) {
-        wtf[i] = 255;
+    for (unsigned long long int i = 0; i < size / sizeof(long long int); i++) {
+        wtf[i] = 0x80085;
+        if (i > 0 && i % (1024 * 1024 * 1024 / sizeof(long long int)) == 0) printf(".");
     }
+    printf("\n");
 
-    printf("%llu bytes of heap memory has been allocated. you are insane.\n", size);
-    printf("press any key to release this memory, or CTRL+C to exit the program.\n");
+    printf("%d GiB (%llu bytes) of heap memory has been allocated. you are insane.\n", gib, size);
+    printf("press ENTER to release this memory, or CTRL+C to exit the program.\n");
 
     getchar();
 

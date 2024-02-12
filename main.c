@@ -36,6 +36,8 @@ char* get_shorthand(unsigned long long int size) {
                 snprintf(buffer, 12, "%.2f KiB", (float) size / KiB);
                 return buffer;
         }
+
+        return 0;
 }
 
 unsigned long long int adjust_by_denomination(unsigned long long int size, char denomination) {

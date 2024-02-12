@@ -88,7 +88,7 @@ int main() {
         if (input != 'y') return 0;
         while (getchar() != '\n');
 
-        printf("please wait");
+        printf("please wait.");
         fflush(stdout);
 
         unsigned long long int* wtf = (unsigned long long int*) malloc(size);

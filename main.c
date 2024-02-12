@@ -105,7 +105,7 @@ int main() {
         if (shorthand) {
                 printf("%s (%llu bytes) of heap memory has been allocated. you are insane.\n", shorthand, size);
         } else {
-                printf("%llu byte%c of heap memory have been allocated. you are insane.\n", size, size == 1 ? 0 : 's');
+                printf("%llu byte%c of heap memory ha%s been allocated. you are insane.\n", size, size == 1 ? 0 : 's', size == 1 ? "s" : "ve");
         }
         free(shorthand);
         printf("press ENTER to release this memory, or CTRL+C to exit the program.\n");

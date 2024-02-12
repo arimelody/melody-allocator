@@ -63,6 +63,7 @@ int main() {
         while (1) {
                 unsigned char input = getchar();
                 if (input == '\n') break;
+                if (input >= 'a' && input <= 'z') input -= 32;
                 last_char = input;
 
                 if (input < '0' || input > '9') continue;

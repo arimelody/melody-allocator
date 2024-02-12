@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <string.h>
 #include <limits.h>
 
 #define KiB (unsigned long long int) 0x400
@@ -53,7 +52,11 @@ unsigned long long int adjust_by_denomination(unsigned long long int size, char 
         }
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+
+        for (int i = 0; i < argc; i++) {
+                printf("%s\n", argv[i]);
+        }
 
         unsigned long long int size = 0;
 
@@ -95,7 +98,7 @@ int main() {
         unsigned long long int* wtf = (unsigned long long int*) malloc(size);
 
         for (unsigned long long int i = 0; i < size / sizeof(long long int); i++) {
-                wtf[i] = ULLONG_MAX;
+                wtf[i] = i;
                 if (i > 0 && i % (1024 * 1024 * 1024 / sizeof(long long int)) == 0) {
                         printf(".");
                         fflush(stdout);
@@ -109,6 +112,52 @@ int main() {
                 printf("%llu byte%c of heap memory ha%s been allocated. you are insane.\n", size, size == 1 ? 0 : 's', size == 1 ? "s" : "ve");
         }
         free(shorthand);
+
+        printf("would you like to save this abomination to disk? (y/n)\n> ");
+        input = getchar();
+        if (input == 'y') {
+                while (getchar() != '\n');
+
+                printf("please enter a filename (relative to current directory)\n> ");
+                char filename[32];
+                unsigned char filename_length = 0;
+                while (1) {
+                        input = getchar();
+                        if (input == '\n' || filename_length == 31) {
+                                filename[filename_length] = '\0';
+                                break;
+                        }
+                        filename[filename_length] = input;
+                        filename_length++;
+                }
+
+                printf("saving to %s.\n", filename);
+
+                FILE* file = fopen(filename, "w");
+                if (file == NULL) {
+                        printf("failed to open %s!", filename);
+                        return 1;
+                }
+
+                printf("please wait.");
+                for (unsigned long long int i = 0; i < size / sizeof(long long int); i++) {
+                        for (int p = 0; p < 8; p++) {
+                                fputc(*(&wtf[i] + p), file);
+                        }
+                        if (i > 0 && i % (1024 * 1024 * 1024 / sizeof(long long int)) == 0) {
+                                printf(".");
+                                fflush(stdout);
+                        }
+                }
+                printf("\n");
+                fputs("\n", file);
+                fclose(file);
+
+                printf("done!\n");
+        } else {
+                while (getchar() != '\n');
+        }
+
         printf("press ENTER to release this memory, or CTRL+C to exit the program.\n");
 
         getchar();

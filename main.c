@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 
 int main() {
 
@@ -33,7 +34,7 @@ int main() {
         unsigned long long int* wtf = (unsigned long long int*) malloc(size);
 
         for (unsigned long long int i = 0; i < size / sizeof(long long int); i++) {
-                wtf[i] = 0x80085;
+                wtf[i] = ULLONG_MAX;
                 if (i > 0 && i % (1024 * 1024 * 1024 / sizeof(long long int)) == 0) {
                         printf(".");
                         fflush(stdout);

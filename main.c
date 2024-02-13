@@ -1,7 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <limits.h>
+#include <unistd.h>
+#include <errno.h>
+#include <ctype.h>
+#include <string.h>
+
+#define BYTES_GIVEN     1
+#define FILENAME_GIVEN  2
+#define SILENT          4
+#define BYPASS_WARN     8
 
 #define KiB (unsigned long long int) 0x400
 #define MiB (unsigned long long int) 0x100000
@@ -10,14 +18,131 @@
 
 #define LOADS TiB * 9999
 
-char* get_shorthand(unsigned long long int size) {
+void print_help();
+unsigned char* get_shorthand(unsigned long long int size);
+void adjust_by_denomination(unsigned long long int* size, char denomination);
+unsigned long long int* allocate_heap(unsigned long long int size, char silent);
+void save_heap(unsigned long long int* heap, unsigned long long int size, char* filename, char silent);
+
+int main(int argc, char* argv[]) {
+
+        unsigned char flags = 0;
+        unsigned long long int size = 0;
+        unsigned char* filename = NULL;
+        unsigned char denominator = 0;
+
+        int arg;
+        while ((arg = getopt(argc, argv, "hb:o:sw")) != -1) {
+                switch (arg) {
+                        case 'h':
+                                print_help();
+                                exit(0);
+                        case 'b':
+                                size = strtoull(optarg, NULL, 10);
+                                if (errno == EINVAL) {
+                                        fprintf(stderr, "argument -b used with invalid value '%s'!\n", optarg);
+                                        exit(0);
+                                }
+                                if (errno == ERANGE) {
+                                        fprintf(stderr, "byte argument ''%s' out of range!\n", optarg);
+                                        exit(0);
+                                }
+                                denominator = optarg[strlen(optarg) - 1];
+                                flags |= BYTES_GIVEN;
+                                break;
+                        case 'o':
+                                filename = optarg;
+                                flags |= FILENAME_GIVEN;
+                                break;
+                        case 's':
+                                if (size == 0 || filename == NULL) {
+                                        fprintf(stderr, "cannot run silently without -b and -o set!\n");
+                                        print_help();
+                                }
+                                flags |= SILENT;
+                                break;
+                        case 'w':
+                                flags |= BYPASS_WARN;
+                                break;
+                        case '?':
+                                if (optopt == 'b' || optopt == 'o')
+                                        fprintf(stderr, "argument -%c requires an argument!\n", optopt);
+                                else if (isprint(optopt))
+                                        fprintf(stderr, "unknown argument '-%c'.\n", optopt);
+                                else
+                                        fprintf(stderr, "unknown argument character '\\x%x'.\n", optopt);
+                                exit(1);
+                        default:
+                                exit(1);
+                }
+        }
+
+        if (!(flags & BYTES_GIVEN)) {
+                fprintf(stderr, "argument -b is required!\n", optopt);
+                print_help();
+                exit(1);
+        }
+
+        adjust_by_denomination(&size, denominator);
+
+        // even if the user doesn't specify a denomination, it still would be nice to display a truncated amount if available.
+        unsigned char* shorthand = get_shorthand(size);
+        if (!(flags & SILENT) && !(flags & BYPASS_WARN)) {
+                if (shorthand) {
+                        printf("you are about to allocate %s (%llu bytes) of heap memory. are you sure? (y/N)\n> ", shorthand, size);
+                } else {
+                        printf("you are about to allocate %llu byte%c of heap memory. are you sure? (y/N)\n> ", size, size == 1 ? 0 : 's');
+                }
+
+                unsigned char input = getchar();
+                if (input != 'y') exit(0);
+                while (getchar() != '\n');
+        }
+
+        unsigned long long int* heap = allocate_heap(size, flags & SILENT);
+
+        if (!(flags & SILENT)) {
+                if (shorthand) {
+                        printf("%s (%llu bytes) of heap memory has been allocated. you are insane.\n", shorthand, size);
+                } else {
+                        printf("%llu byte%c of heap memory ha%s been allocated. you are insane.\n", size, size == 1 ? 0 : 's', size == 1 ? "s" : "ve");
+                }
+                free(shorthand);
+
+                printf("press ENTER to release this memory, or CTRL+C to exit the program.\n");
+                getchar();
+                free(heap);
+                exit(0);
+        }
+
+        if (filename != NULL) save_heap(heap, size, filename, SILENT);
+
+        if (!(flags & SILENT)) printf("done!\n");
+
+        free(heap);
+        return 0;
+
+}
+
+void print_help() {
+        printf("usage: allocatememory -b <bytes> [-o <output file>] [-s]\n\n");
+        printf("OPTIONS\n");
+        printf("  -h\tdisplays help\n");
+        printf("  -b\tnumber of bytes to allocate (e.g. 1024, 1g, 64K)\n");
+        printf("  -o\tfile to output to\n");
+        printf("  -s\trun silently (requires -b and -o)\n");
+        printf("  -w\tdisable warnings (\"i know what i'm doing!\")\n");
+        exit(0);
+}
+
+unsigned char* get_shorthand(unsigned long long int size) {
         if (size < KiB) return 0;
 
         if (size > LOADS) {
                 return ">9999 TiB";
         }
 
-        char* buffer = malloc(sizeof(char) * 12);
+        unsigned char* buffer = malloc(sizeof(char) * 12);
 
         if (size >= TiB) {
                 snprintf(buffer, 12, "%.2f TiB", (float) size / TiB);
@@ -37,133 +162,65 @@ char* get_shorthand(unsigned long long int size) {
         }
 }
 
-unsigned long long int adjust_by_denomination(unsigned long long int size, char denomination) {
+void adjust_by_denomination(unsigned long long int* size, char denomination) {
+        if (denomination >= 'a' && denomination <= 'z') denomination -= 32;
         switch (denomination) {
                 case 'K':
-                        return size * KiB;
+                        *size *= KiB;
+                        return;
                 case 'M':
-                        return size * MiB;
+                        *size *= MiB;
+                        return;
                 case 'G':
-                        return size * GiB;
+                        *size *= GiB;
+                        return;
                 case 'T':
-                        return size * TiB;
-                default:
-                        return size;
+                        *size *= TiB;
+                        return;
         }
 }
 
-int main(int argc, char* argv[]) {
-
-        for (int i = 0; i < argc; i++) {
-                printf("%s\n", argv[i]);
+unsigned long long int* allocate_heap(unsigned long long int size, char silent) {
+        if (!silent) {
+                printf("please wait.");
+                fflush(stdout);
         }
 
-        unsigned long long int size = 0;
-
-        printf("please enter the amount of memory you would like to allocate (\"1G\" = 1 GiB = 1073741824 bytes):\n> ");
-        unsigned int digit = 0;
-        unsigned char last_char = 0;
-        while (1) {
-                unsigned char input = getchar();
-                if (input == '\n') break;
-                if (input >= 'a' && input <= 'z') input -= 32;
-                last_char = input;
-
-                if (input < '0' || input > '9') continue;
-
-                if (digit > 0) size *= 10;
-
-                size += (unsigned int) input - 48;
-                digit++;
-        }
-
-        size = adjust_by_denomination(size, last_char);
-
-        // even if the user doesn't specify a denomination, it still would be nice to display a truncated amount if available.
-        char* shorthand = get_shorthand(size);
-
-        if (shorthand) {
-                printf("you are about to allocate %s (%llu bytes) of heap memory. are you sure? (y/n)\n> ", shorthand, size);
-        } else {
-                printf("you are about to allocate %llu byte%c of heap memory. are you sure? (y/n)\n> ", size, size == 1 ? 0 : 's');
-        }
-
-        unsigned char input = getchar();
-        if (input != 'y') return 0;
-        while (getchar() != '\n');
-
-        printf("please wait.");
-        fflush(stdout);
-
-        unsigned long long int* wtf = (unsigned long long int*) malloc(size);
+        unsigned long long int* heap = (unsigned long long int*) malloc(size);
 
         for (unsigned long long int i = 0; i < size / sizeof(long long int); i++) {
-                wtf[i] = i;
-                if (i > 0 && i % (1024 * 1024 * 1024 / sizeof(long long int)) == 0) {
+                heap[i] = i;
+                if (!silent && i > 0 && i % (1024 * 1024 * 1024 / sizeof(long long int)) == 0) {
                         printf(".");
                         fflush(stdout);
                 }
         }
-        printf("\n");
+        if (!silent) printf("\n");
 
-        if (shorthand) {
-                printf("%s (%llu bytes) of heap memory has been allocated. you are insane.\n", shorthand, size);
-        } else {
-                printf("%llu byte%c of heap memory ha%s been allocated. you are insane.\n", size, size == 1 ? 0 : 's', size == 1 ? "s" : "ve");
-        }
-        free(shorthand);
+        return heap;
+}
 
-        printf("would you like to save this abomination to disk? (y/n)\n> ");
-        input = getchar();
-        if (input == 'y') {
-                while (getchar() != '\n');
-
-                printf("please enter a filename (relative to current directory)\n> ");
-                char filename[32];
-                unsigned char filename_length = 0;
-                while (1) {
-                        input = getchar();
-                        if (input == '\n' || filename_length == 31) {
-                                filename[filename_length] = '\0';
-                                break;
-                        }
-                        filename[filename_length] = input;
-                        filename_length++;
-                }
-
-                printf("saving to %s.\n", filename);
-
-                FILE* file = fopen(filename, "w");
-                if (file == NULL) {
-                        printf("failed to open %s!", filename);
-                        return 1;
-                }
-
-                printf("please wait.");
-                for (unsigned long long int i = 0; i < size / sizeof(long long int); i++) {
-                        for (int p = 0; p < 8; p++) {
-                                fputc(*(&wtf[i] + p), file);
-                        }
-                        if (i > 0 && i % (1024 * 1024 * 1024 / sizeof(long long int)) == 0) {
-                                printf(".");
-                                fflush(stdout);
-                        }
-                }
-                printf("\n");
-                fputs("\n", file);
-                fclose(file);
-
-                printf("done!\n");
-        } else {
-                while (getchar() != '\n');
+void save_heap(unsigned long long int* heap, unsigned long long int size, char* filename, char silent) {
+        FILE* file = fopen(filename, "wb");
+        if (file == NULL) {
+                printf("failed to open %s!", filename);
+                exit(1);
         }
 
-        printf("press ENTER to release this memory, or CTRL+C to exit the program.\n");
-
-        getchar();
-
-        free(wtf);
-
-        return 0;
-
+        if (!silent) printf("please wait...\n");
+        /*
+        for (unsigned long long int i = 0; i < size / sizeof(unsigned long long int); i++) {
+                for (int p = 0; p < 8; p++) {
+                        fputc(*(&heap[i] + p), file);
+                }
+                if (i > 0 && i % (1024 * 1024 * 1024 / sizeof(long long int)) == 0) {
+                        if (!silent) printf(".");
+                        fflush(stdout);
+                }
+        }
+        if (!silent) printf("\n");
+        */
+        fwrite(heap, sizeof(char), size, file);
+        fputs("\n", file);
+        fclose(file);
 }

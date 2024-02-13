@@ -7,7 +7,7 @@
 #include <string.h>
 
 #define BYTES_GIVEN     1
-#define FILENAME_GIVEN  2
+#define OUTPUT_FILE     2
 #define SILENT          4
 #define BYPASS_WARN     8
 
@@ -52,7 +52,7 @@ int main(int argc, char* argv[]) {
                                 break;
                         case 'o':
                                 filename = optarg;
-                                flags |= FILENAME_GIVEN;
+                                flags |= OUTPUT_FILE;
                                 break;
                         case 's':
                                 if (size == 0 || filename == NULL) {
@@ -100,6 +100,7 @@ int main(int argc, char* argv[]) {
         }
 
         unsigned long long int* heap = allocate_heap(size, flags & SILENT);
+        if (filename != NULL) save_heap(heap, size, filename, flags & SILENT);
 
         if (!(flags & SILENT)) {
                 if (shorthand) {
@@ -114,10 +115,6 @@ int main(int argc, char* argv[]) {
                 free(heap);
                 exit(0);
         }
-
-        if (filename != NULL) save_heap(heap, size, filename, SILENT);
-
-        if (!(flags & SILENT)) printf("done!\n");
 
         free(heap);
         return 0;
@@ -208,20 +205,6 @@ void save_heap(unsigned long long int* heap, unsigned long long int size, char* 
                 printf("failed to open %s!", filename);
                 exit(1);
         }
-
-        if (!silent) printf("please wait...\n");
-        /*
-        for (unsigned long long int i = 0; i < size / sizeof(unsigned long long int); i++) {
-                for (int p = 0; p < 8; p++) {
-                        fputc(*(&heap[i] + p), file);
-                }
-                if (i > 0 && i % (1024 * 1024 * 1024 / sizeof(long long int)) == 0) {
-                        if (!silent) printf(".");
-                        fflush(stdout);
-                }
-        }
-        if (!silent) printf("\n");
-        */
         fwrite(heap, sizeof(char), size, file);
         fputs("\n", file);
         fclose(file);

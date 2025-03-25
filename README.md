@@ -17,10 +17,9 @@ OPTIONS
 
 ## how to compile
 
-- get a c compiler (i use gcc or clang)
-- `gcc -o ./allocatememory -O2 ./main.c`
-- ???
-- profit
+- `make`
+- (optional) `sudo make install`
+- yeag
 
 ## why
 
